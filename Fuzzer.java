@@ -109,6 +109,7 @@ public final class MutatorFactory {
     	    mutatorCatalog.add(MutatorFactory::addRandomTagBracket);
     	    mutatorCatalog.add(MutatorFactory::deleteRandomCharacter);
     	    mutatorCatalog.add(MutatorFactory::addRandomString);
+    	    mutatorCatalog.add(MutatorFactory::addRandomHtmlTags);
     	}
     
         var mutators = new ArrayList<Function<String, String>>();
@@ -126,27 +127,32 @@ public final class MutatorFactory {
     	   return 0;
     	
     	return rng.nextInt(bound);
-    } 
-    	
+    }
+    
     private static String addRandomTagBracket(String input) {
         int randomPosition = random(input.length());
-        int bracketType = random(3);
         
-        String bracket;
+        String[] brackets = {"<", ">", "/>"};
+        int bracketType = random(brackets.length);
         
-        switch(bracketType) {
-        case 0:
-           bracket = "<";
-           break;
-        case 1:
-           bracket = ">";
-           break;
-        default:
-           bracket = "/>";
-        }
+        String bracket = brackets[bracketType];
         
         var stringBuilder = new StringBuilder(input);
         stringBuilder.insert(randomPosition, bracket);
+        
+        return stringBuilder.toString();
+    }
+    	
+    private static String addRandomHtmlTags(String input) {
+        int randomPosition = random(input.length());
+        
+        String[] candidates = {"<html>", "</html>", "<div>", "</div>", "<script>", "</script>"};
+        int candidateIndex = random(candidates.length);
+        
+        String candidate = candidates[candidateIndex];
+        
+        var stringBuilder = new StringBuilder(input);
+        stringBuilder.insert(randomPosition, candidate);
         
         return stringBuilder.toString();
     }
