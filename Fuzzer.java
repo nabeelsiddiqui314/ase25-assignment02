@@ -11,6 +11,9 @@ import java.util.stream.Stream;
 import java.util.Random;
 
 public class Fuzzer {
+    private static int ITERATIONS = 1000;
+    private static String SEED_PATH = "sample.html";
+
     public static void main(String[] args) {
         if (args.length != 1) {
             System.err.println("Usage: java Fuzzer.java \"<command_to_fuzz>\"");
@@ -26,17 +29,15 @@ public class Fuzzer {
 	String seedInput = "";
 	
 	try {
-             seedInput = Files.readString(Path.of("sample.html"));
+             seedInput = Files.readString(Path.of(SEED_PATH));
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
-        
-        
 
         ProcessBuilder builder = getProcessBuilderForCommand(commandToFuzz, workingDirectory);
         System.out.printf("Command: %s\n", builder.command());
 
-        runCommand(builder, seedInput, getMutatedInputs(seedInput, MutatorFactory.getRandomMutators(1000)));
+        runCommand(builder, seedInput, getMutatedInputs(seedInput, MutatorFactory.getRandomMutators(ITERATIONS)));
     }
 
     private static ProcessBuilder getProcessBuilderForCommand(String command, String workingDirectory) {
