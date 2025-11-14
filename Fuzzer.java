@@ -1,6 +1,7 @@
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.ArrayList;
@@ -21,13 +22,21 @@ public class Fuzzer {
         if (!Files.exists(Paths.get(workingDirectory, commandToFuzz))) {
             throw new RuntimeException("Could not find command '%s'.".formatted(commandToFuzz));
         }
-
-        String seedInput = "<html a=\"value\">...</html>";
+	
+	String seedInput = "";
+	
+	try {
+             seedInput = Files.readString(Path.of("sample.html"));
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+        
+        
 
         ProcessBuilder builder = getProcessBuilderForCommand(commandToFuzz, workingDirectory);
         System.out.printf("Command: %s\n", builder.command());
 
-        runCommand(builder, seedInput, getMutatedInputs(seedInput, MutatorFactory.getRandomMutators(100)));
+        runCommand(builder, seedInput, getMutatedInputs(seedInput, MutatorFactory.getRandomMutators(1000)));
     }
 
     private static ProcessBuilder getProcessBuilderForCommand(String command, String workingDirectory) {
@@ -57,10 +66,10 @@ public class Fuzzer {
                         int exitCode = process.waitFor();
                     
                         if (exitCode == 0) {
-                    	    System.out.println("Exited with code 0 for input: " + input);
+                    	    //System.out.println("Exited with code 0 for input: " + input);
                         }
                         else {
-                    	    System.out.println("Crashed for input: " + input);
+                    	    //System.out.println("Crashed for input: " + input);
                     	
                     	    InputStream stdout = process.getInputStream();
                             String output = readStreamIntoString(stdout);
@@ -97,6 +106,8 @@ public final class MutatorFactory {
     static public ArrayList<Function<String, String>> getRandomMutators(int count) {
     	if (mutatorCatalog.isEmpty()) {
     	    mutatorCatalog.add(MutatorFactory::addRandomTagBracket);
+    	    mutatorCatalog.add(MutatorFactory::deleteRandomCharacter);
+    	    mutatorCatalog.add(MutatorFactory::addRandomString);
     	}
     
         var mutators = new ArrayList<Function<String, String>>();
@@ -108,10 +119,17 @@ public final class MutatorFactory {
     	    
     	return mutators;
     }
+    
+    private static int random(int bound) {
+    	if (bound == 0)
+    	   return 0;
+    	
+    	return rng.nextInt(bound);
+    } 
     	
     private static String addRandomTagBracket(String input) {
-        int randomPosition = rng.nextInt(input.length());
-        int bracketType = rng.nextInt(3);
+        int randomPosition = random(input.length());
+        int bracketType = random(3);
         
         String bracket;
         
@@ -126,6 +144,51 @@ public final class MutatorFactory {
            bracket = "/>";
         }
         
-        return input.substring(0, randomPosition) + bracket + input.substring(randomPosition, input.length());
+        var stringBuilder = new StringBuilder(input);
+        stringBuilder.insert(randomPosition, bracket);
+        
+        return stringBuilder.toString();
+    }
+    
+    private static String deleteRandomCharacter(String input) {
+        if (input.isEmpty())
+            return input;
+    
+    	int randomPosition = random(input.length());
+    	
+    	var stringBuilder = new StringBuilder(input);
+    	stringBuilder.deleteCharAt(randomPosition);
+    	
+    	return stringBuilder.toString();
+    }
+    
+    private static String addRandomCharacter(String input) {
+    	int randomPosition = random(input.length());
+    	int randomAscii = random(128);
+    	String asciiString = Character.toString((char)randomAscii);
+    	
+    	var stringBuilder = new StringBuilder(input);
+        stringBuilder.insert(randomPosition, asciiString);
+        
+        return stringBuilder.toString();
+    }
+    
+    private static String addRandomString(String input) {
+        int randomLength = random(20) + 1;
+        int randomPosition = random(input.length());
+        
+        String randomString = "";
+        
+        for (int i = 0; i < randomLength; i++) {
+            int randomAscii = random(128);
+            String asciiString = Character.toString((char)randomAscii);
+            
+            randomString += asciiString;
+        }
+        
+        var stringBuilder = new StringBuilder(input);
+        stringBuilder.insert(randomPosition, randomString);
+        
+        return stringBuilder.toString();
     }
 }
