@@ -9,10 +9,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.Random;
+import java.util.HashMap;
 
 public class Fuzzer {
     private static int ITERATIONS = 1000;
     private static String SEED_PATH = "sample.html";
+    
+    private static HashMap<String, String> UniqueErrorMessages = new HashMap<String, String>();
 
     public static void main(String[] args) {
         if (args.length != 1) {
@@ -38,6 +41,13 @@ public class Fuzzer {
         System.out.printf("Command: %s\n", builder.command());
 
         runCommand(builder, seedInput, getMutatedInputs(seedInput, MutatorFactory.getRandomMutators(ITERATIONS)));
+        
+        System.out.println("Errors caught: \n");
+        
+        for (var errorMessage : UniqueErrorMessages.keySet()) {
+            System.out.println(errorMessage);
+            System.out.println("Culprit: \n" + UniqueErrorMessages.get(errorMessage) + "\n");
+        }
     }
 
     private static ProcessBuilder getProcessBuilderForCommand(String command, String workingDirectory) {
@@ -65,17 +75,14 @@ public class Fuzzer {
                         stdin.close();
                     
                         int exitCode = process.waitFor();
-                    
-                        if (exitCode == 0) {
-                    	    //System.out.println("Exited with code 0 for input: " + input);
-                        }
-                        else {
-                    	    //System.out.println("Crashed for input: " + input);
-                    	
+
+                        if (exitCode != 0) {
                     	    InputStream stdout = process.getInputStream();
                             String output = readStreamIntoString(stdout);
                         
-                            System.out.println(output);
+                            if (!UniqueErrorMessages.containsKey(output)) {
+                            	UniqueErrorMessages.put(output, input);
+                            }
                         }
                     } catch (Exception e) {
                         System.out.println("Exception: " + e.getMessage());	
@@ -181,7 +188,7 @@ public final class MutatorFactory {
     }
     
     private static String addRandomString(String input) {
-        int randomLength = random(20) + 1;
+        int randomLength = random(100) + 1;
         int randomPosition = random(input.length());
         
         String randomString = "";
