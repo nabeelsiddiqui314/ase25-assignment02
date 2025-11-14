@@ -3,9 +3,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.Random;
 
 public class Fuzzer {
     public static void main(String[] args) {
@@ -25,10 +27,7 @@ public class Fuzzer {
         ProcessBuilder builder = getProcessBuilderForCommand(commandToFuzz, workingDirectory);
         System.out.printf("Command: %s\n", builder.command());
 
-        runCommand(builder, seedInput, getMutatedInputs(seedInput, List.of(
-                input -> input.replace("<html", "a"), // this is just a placeholder, mutators should not only do hard-coded string replacement
-                input -> input.replace("<html", "")
-        )));
+        runCommand(builder, seedInput, getMutatedInputs(seedInput, MutatorFactory.getRandomMutators(100)));
     }
 
     private static ProcessBuilder getProcessBuilderForCommand(String command, String workingDirectory) {
@@ -86,5 +85,47 @@ public class Fuzzer {
         return mutators.stream()
                 .map(mutator -> mutator.apply(seedInput))
                 .collect(Collectors.toList());
+    }
+}
+
+public final class MutatorFactory {
+    static ArrayList<Function<String, String>> mutatorCatalog = new ArrayList<Function<String, String>>();
+    static Random rng = new Random(System.currentTimeMillis());
+    
+    private MutatorFactory() {}
+    	
+    static public ArrayList<Function<String, String>> getRandomMutators(int count) {
+    	if (mutatorCatalog.isEmpty()) {
+    	    mutatorCatalog.add(MutatorFactory::addRandomTagBracket);
+    	}
+    
+        var mutators = new ArrayList<Function<String, String>>();
+            
+        for (int i = 0; i < count; i++) {
+    	    int randomIndex = rng.nextInt(mutatorCatalog.size());
+            mutators.add(mutatorCatalog.get(randomIndex));
+        }
+    	    
+    	return mutators;
+    }
+    	
+    private static String addRandomTagBracket(String input) {
+        int randomPosition = rng.nextInt(input.length());
+        int bracketType = rng.nextInt(3);
+        
+        String bracket;
+        
+        switch(bracketType) {
+        case 0:
+           bracket = "<";
+           break;
+        case 1:
+           bracket = ">";
+           break;
+        default:
+           bracket = "/>";
+        }
+        
+        return input.substring(0, randomPosition) + bracket + input.substring(randomPosition, input.length());
     }
 }
